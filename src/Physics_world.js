@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon';
-import CameraController from './CameraController.js'
-import { FLOOR_BOUNDARY } from './common.js'
+import Ammo from 'ammo.js';
+import CameraController from './CameraController.js';
+import Materials from './Materials.js';
+import Renderer from './Renderer.js';
 
 class Physics_world {
     constructor(options = {}) {
@@ -11,13 +12,29 @@ class Physics_world {
         stepFrequency: 60,
         ...options,
       };
-      // Cannon.js world setup
-      this.world = null;
+      // Ammo.js physics world setup
+      this.collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
+      this.dispatcher = new Ammo.btCollisionDispatcher(this.collisionConfiguration);
+      this.overlappingPairCache = new Ammo.btDbvtBroadphase();
+      this.solver = new Ammo.btSequentialImpulseConstraintSolver();
+      this.world = new Ammo.btDiscreteDynamicsWorld(
+          this.dispatcher,
+          this.overlappingPairCache,
+          this.solver,
+          this.collisionConfiguration
+      );
+      this.world.setGravity(new Ammo.btVector3(
+          this.settings.gravity.x,
+          this.settings.gravity.y,
+          this.settings.gravity.z
+      ));
+      this.pos = new THREE.Vector3();
+      this.quat = new THREE.Quaternion();
   
       // Three.js scene setup
-      this.scene = null;
-      this.cameraController = null;
-      this.renderer = null;
+      this.scene =  new THREE.Scene();
+      this.cameraController = new CameraController();
+      this.renderer = new Renderer(this.scene, this.cameraController);
   
       // Storage for physics and visuals
       this.bodies = [];
@@ -25,8 +42,8 @@ class Physics_world {
       this.fixedTimeStep=1.0/60.0;
       this.maxSubSteps = 3;
       this.lastTime;
-      // Shader
-      this.shader = null;
+      //shader
+      this.material=new Materials();
     }
   
     // Initialize the scene and world
@@ -34,106 +51,59 @@ class Physics_world {
       this.createWorld();
       this.createScene();
     }
-  
-    // Create Cannon.js world
-    createWorld() {
-      this.world = new CANNON.World();
-      this.world.gravity.set(this.settings.gravity.x, this.settings.gravity.y, this.settings.gravity.z);
-      this.world.broadphase = new CANNON.NaiveBroadphase();
-      this.world.solver.iterations = 10;
 
-      //basic floor
-      const groundBody = new CANNON.Body({ mass: 0 });
-      const groundShape = new CANNON.Plane();
-      groundBody.addShape(groundShape);
-      groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-      groundBody.position.y=-0.05;
-      this.world.addBody(groundBody);
-      this.bodies.push(groundBody);
+  
+    // Ammo.js physics world setup
+    createWorld() {
+      //add floor
+
+      this.world.addRigidBody(body);
+      this.bodies.push(body);
     }
   
     // Create Three.js scene
     createScene() {
-      this.scene = new THREE.Scene();
-      // Camera
-      this.cameraController = new CameraController();
-      // Shader
-      // this.shader = new Shader('./shader/vertex.glsl','./shader/fragment.glsl');
-      // this.shader.loadShaders().then(() => {console.log(this.shader.vertexShader, this.shader.fragmentShader);});
+      //set loop
+      this.renderer.renderer.setAnimationLoop(this.animate.bind(this));
+
       const axesHelper = new THREE.AxesHelper(5);
       this.scene.add(axesHelper);
-      //Renderer
-      this.renderer = new THREE.WebGLRenderer({ antialias: true });
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-      this.renderer.setAnimationLoop( this.animate.bind(this) );
-      document.body.appendChild(this.renderer.domElement);
-      //basic floor
-      const floorGeometry = new THREE.PlaneGeometry(10, 10);
-      const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
-      const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-      floor.rotation.x = -Math.PI / 2; 
-      floor.position.y = FLOOR_BOUNDARY-0.05; 
+      const floorGeometry=new THREE.PlaneGeometry(10,10);
+      const floorMaterial=this.material.createBlinnPhongMaterial();
+      const floor=new THREE.Mesh(floorGeometry,floorMaterial);
+
       this.scene.add(floor);
       this.visuals.push(floor);
-
-      // Lights
-      const ambientLight = new THREE.AmbientLight(0x404040);
-      this.scene.add(ambientLight);
-  
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-      directionalLight.position.set(10, 10, 10);
-      this.scene.add(directionalLight);
+      //
     }
-  
-    // Add a box to the scene and physics world
-    addBox(position, size, mass) {
-      // Cannon.js body
-      const boxShape = new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2));
-      const boxBody = new CANNON.Body({ mass: mass });
-      boxBody.addShape(boxShape);
-  
-      // Set position
-      boxBody.position.set(position.x, position.y, position.z);
-  
-      const angle = Math.PI / 6; // 30 degrees in radians
-      boxBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), angle);
-  
-      this.world.addBody(boxBody);
-      this.bodies.push(boxBody);
-  
-      // Three.js mesh
-      const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-      const material = new THREE.MeshStandardMaterial({ color: 0x0077ff });
-      const boxMesh = new THREE.Mesh(geometry, material);
-  
-      // Set the same rotation for the Three.js mesh
-      boxMesh.position.set(position.x, position.y, position.z);
-      boxMesh.rotation.y = angle; // Rotate by 45 degrees around the y-axis
-  
-      this.scene.add(boxMesh);
-      this.visuals.push(boxMesh);
-  }
   
     // Update visuals to match physics bodies
     updateVisuals() {
       for (let i = 0; i < this.bodies.length; i++) {
-        const body = this.bodies[i];
-        const visual = this.visuals[i];
-        visual.position.copy(body.position);
-        visual.quaternion.copy(body.quaternion);
+          const body = this.bodies[i];
+          const motionState = body.getMotionState();
+          if (motionState) {
+              const transform = new Ammo.btTransform();
+              motionState.getWorldTransform(transform);
+
+              const origin = transform.getOrigin();
+              const rotation = transform.getRotation();
+              const visual = this.visuals[i];
+              visual.position.set(origin.x(), origin.y(), origin.z());
+              visual.quaternion.set(rotation.x(), rotation.y(), rotation.z(), rotation.w());
+          }
       }
-    }
-  
+  }
     // Animation loop
-    animate(time) {
-      this.cameraController.update();
-      if(this.lastTime!==undefined){
-        const dt=(time-this.lastTime)/1000;
-        this.world.step(this.fixedTimeStep,dt,this.maxSubSteps);
-        this.updateVisuals();
-      }
-      this.renderer.render(this.scene,this.cameraController.camera);
-      this.lastTime=time;
+  animate(time) {
+    this.cameraController.update();
+    if(this.lastTime!==undefined){
+      const dt=(time-this.lastTime)/1000;
+      this.world.stepSimulation(dt,this.maxSubSteps,this.fixedTimeStep);
+      this.updateVisuals();
     }
+    this.renderer.render();
+    this.lastTime=time;
+  }
 }
 export default Physics_world;

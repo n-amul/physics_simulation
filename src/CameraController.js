@@ -6,8 +6,7 @@ const width = window.innerWidth, height = window.innerHeight;
 class CameraController {
   constructor() {
     this.camera = new THREE.PerspectiveCamera(70, width / height, 0.01, 10);
-    this.camera.position.z = 1;
-    this.camera.position.y = 0.5;
+    this.camera.position.set(0, 0.5, 1);
     // movement variables
     this.moveForward = false;
     this.moveBackward = false;

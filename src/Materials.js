@@ -8,7 +8,7 @@ import simpleFragmentShader from '../shader/simple/fragment.glsl';
 class Materials {
     constructor() {
         // Store material properties as attributes
-        this.lightPosition = new THREE.Vector3(10, 10, 10);
+        this.lightPosition = new THREE.Vector3(-10, 10, 5);
         this.lightColor = new THREE.Color(1, 1, 1);
         this.ambientColor = new THREE.Color(0.1, 0.1, 0.1);
         this.diffuseColor=new THREE.Color(0.5,0.5,0.5);

@@ -5,8 +5,8 @@ const width = window.innerWidth, height = window.innerHeight;
 
 class CameraController {
   constructor() {
-    this.camera = new THREE.PerspectiveCamera(70, width / height, 0.01, 10);
-    this.camera.position.set(0, 0.5, 1);
+    this.camera = new THREE.PerspectiveCamera(70, width / height, 0.01, 100);
+    this.camera.position.set(3, 3, 1);
     // movement variables
     this.moveForward = false;
     this.moveBackward = false;
@@ -16,7 +16,7 @@ class CameraController {
     this.moveDown = false;
     this.isMousePressed = false;
     // rotation variables
-    this.rotationSpeed = 0.002;
+    this.rotationSpeed = 0.003;
     this.lastMouseX = null;
     this.lastMouseY = null;
     this.cameraFront = new THREE.Vector3(0, 0, -1);
@@ -24,7 +24,7 @@ class CameraController {
     this.cameraUp = new THREE.Vector3(0, 1, 0);
     this.rotationUpdated = true; // Flag to indicate if recalculation is needed
     // camera movement speed
-    this.moveSpeed = 0.01;
+    this.moveSpeed = 0.03;
     // event listeners for keydown, keyup, and mouse events
     document.addEventListener('keydown', (event) => this.onKeyDown(event));
     document.addEventListener('keyup', (event) => this.onKeyUp(event));

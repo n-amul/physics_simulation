@@ -9,6 +9,8 @@ export default class Renderer {
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(this.renderer.domElement);
+        this.renderer.setClearColor(0xbfd1e5);
+        this.renderer.shadowMap.enabled=true;
 
         // Handle window resize
         window.addEventListener('resize', () => {
